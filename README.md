@@ -2,6 +2,8 @@ ci_hmvc_bootstrap3_stripe_ION
 =============================
 
 Codeigniter with Wiredesignz- Hmvc module, Bootstrap 3, Stripe.php, and ION Auth Integration
+
+UPDATE: I've now refactored ion_auth to be able to use it as an hmvc module.
 ##Configuration
 After cloning and installing you will need to update the database config file in application/config/database.php with your database connection details.
 Then you will need to run the sql file in /ion auth sql that matches the type of database you are using (MY,POSTGRE, etc) on your database to create the ion auth tables ion auth uses.
