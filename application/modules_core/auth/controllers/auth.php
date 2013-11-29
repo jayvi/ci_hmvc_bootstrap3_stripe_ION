@@ -1,6 +1,6 @@
 <?php defined('BASEPATH') OR exit('No direct script access allowed');
 
-class Auth extends CI_Controller {
+class Auth extends MX_Controller {
 
 	function __construct()
 	{
@@ -30,10 +30,10 @@ class Auth extends CI_Controller {
 			//redirect them to the login page
 			redirect('auth/login', 'refresh');
 		}
-		elseif (!$this->ion_auth->is_admin())
+		elseif (!$this->ion_auth->is_admin()) //remove this elseif if you want to enable this for non-admins
 		{
 			//redirect them to the home page because they must be an administrator to view this
-			redirect('/', 'refresh');
+			return show_error('You must be an administrator to view this page.');
 		}
 		else
 		{
@@ -71,7 +71,7 @@ class Auth extends CI_Controller {
 				//if the login is successful
 				//redirect them back to the home page
 				$this->session->set_flashdata('message', $this->ion_auth->messages());
-				redirect('manage', 'refresh');
+				redirect('/', 'refresh');
 			}
 			else
 			{
@@ -91,14 +91,10 @@ class Auth extends CI_Controller {
 				'id' => 'identity',
 				'type' => 'text',
 				'value' => $this->form_validation->set_value('identity'),
-				'class' => 'form-control',
-				'placeholder' => 'Email Address',
 			);
 			$this->data['password'] = array('name' => 'password',
 				'id' => 'password',
 				'type' => 'password',
-				'class' => 'form-control',
-				'placeholder' => 'Password',
 			);
 
 			$this->_render_page('auth/login', $this->data);
@@ -115,10 +111,6 @@ class Auth extends CI_Controller {
 
 		//redirect them to the login page
 		$this->session->set_flashdata('message', $this->ion_auth->messages());
-		//added
-		header("Cache-Control: no-cache, must-revalidate"); // HTTP/1.1
-		header("Expires: Wed, 4 Jul 2012 05:00:00 GMT"); // Date in the past
-		//end added
 		redirect('auth/login', 'refresh');
 	}
 
@@ -147,26 +139,17 @@ class Auth extends CI_Controller {
 				'name' => 'old',
 				'id'   => 'old',
 				'type' => 'password',
-				'class' => 'form-control',
-				'autocomplete' => 'off',
-				'placeholder' => 'Old Password',
 			);
 			$this->data['new_password'] = array(
 				'name' => 'new',
 				'id'   => 'new',
 				'type' => 'password',
-				'class' => 'form-control',
-				'autocomplete' => 'off',
-				'placeholder' => 'New Password',
 				'pattern' => '^.{'.$this->data['min_password_length'].'}.*$',
 			);
 			$this->data['new_password_confirm'] = array(
 				'name' => 'new_confirm',
 				'id'   => 'new_confirm',
 				'type' => 'password',
-				'class' => 'form-control',
-				'autocomplete' => 'off',
-				'placeholder' => 'Confirm New Password',
 				'pattern' => '^.{'.$this->data['min_password_length'].'}.*$',
 			);
 			$this->data['user_id'] = array(
@@ -208,8 +191,6 @@ class Auth extends CI_Controller {
 			//setup the input
 			$this->data['email'] = array('name' => 'email',
 				'id' => 'email',
-				'class' => 'form-control',
-				'placeholder' => 'Email Address',
 			);
 
 			if ( $this->config->item('identity', 'ion_auth') == 'username' ){
@@ -227,9 +208,13 @@ class Auth extends CI_Controller {
 		else
 		{
 			// get identity for that email
-			$config_tables = $this->config->item('tables', 'ion_auth');
-			$identity = $this->db->where('email', $this->input->post('email'))->limit('1')->get($config_tables['users'])->row();
-
+            $identity = $this->ion_auth->where('email', strtolower($this->input->post('email')))->users()->row();
+            if(empty($identity)) {
+                $this->ion_auth->set_message('forgot_password_email_not_found');
+                $this->session->set_flashdata('message', $this->ion_auth->messages());
+                redirect("auth/forgot_password", 'refresh');
+            }
+            
 			//run the forgotten password method to email an activation code to the user
 			$forgotten = $this->ion_auth->forgotten_password($identity->{$this->config->item('identity', 'ion_auth')});
 
@@ -275,19 +260,13 @@ class Auth extends CI_Controller {
 				$this->data['new_password'] = array(
 					'name' => 'new',
 					'id'   => 'new',
-					'type' => 'password',
-					'class' => 'form-control',
-					'autocomplete' => 'off',
-					'placeholder' => 'New Password',
+				'type' => 'password',
 					'pattern' => '^.{'.$this->data['min_password_length'].'}.*$',
 				);
 				$this->data['new_password_confirm'] = array(
 					'name' => 'new_confirm',
 					'id'   => 'new_confirm',
 					'type' => 'password',
-					'class' => 'form-control',
-					'autocomplete' => 'off',
-					'placeholder' => 'Confirm New Password',
 					'pattern' => '^.{'.$this->data['min_password_length'].'}.*$',
 				);
 				$this->data['user_id'] = array(
@@ -423,7 +402,7 @@ class Auth extends CI_Controller {
 		//validate form input
 		$this->form_validation->set_rules('first_name', $this->lang->line('create_user_validation_fname_label'), 'required|xss_clean');
 		$this->form_validation->set_rules('last_name', $this->lang->line('create_user_validation_lname_label'), 'required|xss_clean');
-		$this->form_validation->set_rules('email', $this->lang->line('create_user_validation_email_label'), 'required|valid_email');
+		$this->form_validation->set_rules('email', $this->lang->line('create_user_validation_email_label'), 'required|valid_email|is_unique[users.email]');
 		$this->form_validation->set_rules('phone', $this->lang->line('create_user_validation_phone_label'), 'required|xss_clean');
 		$this->form_validation->set_rules('company', $this->lang->line('create_user_validation_company_label'), 'required|xss_clean');
 		$this->form_validation->set_rules('password', $this->lang->line('create_user_validation_password_label'), 'required|min_length[' . $this->config->item('min_password_length', 'ion_auth') . ']|max_length[' . $this->config->item('max_password_length', 'ion_auth') . ']|matches[password_confirm]');
@@ -432,7 +411,7 @@ class Auth extends CI_Controller {
 		if ($this->form_validation->run() == true)
 		{
 			$username = strtolower($this->input->post('first_name')) . ' ' . strtolower($this->input->post('last_name'));
-			$email    = $this->input->post('email');
+			$email    = strtolower($this->input->post('email'));
 			$password = $this->input->post('password');
 
 			$additional_data = array(
